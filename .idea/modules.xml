@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/TrabajoFinalComputacion2.iml" filepath="$PROJECT_DIR$/.idea/TrabajoFinalComputacion2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../socket_inet/.idea/socket_inet.iml" filepath="$PROJECT_DIR$/../socket_inet/.idea/socket_inet.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../socket_inet_stream/.idea/socket_inet_stream.iml" filepath="$PROJECT_DIR$/../socket_inet_stream/.idea/socket_inet_stream.iml" />
+    </modules>
+  </component>
+</project>
