@@ -10,10 +10,25 @@
 #include <sys/socket.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <arpa/inet.h>
 
-#define MYPORT 8000
+
+#define DEFAULT_PORT 8000
 #define MSG_SIZE 80
 #define MAX_CLIENTS 2
+#define CLIENT_ADDRESS_LENGTH 100
+
+typedef struct {
+    int client_id
+    char username;
+    char status;
+    struct sockaddr_in data;
+} Client;
+
+typedef struct {
+    int client_id1
+    int client_id2
+} Relationships;
 
 void usage(char*);
 
@@ -22,73 +37,81 @@ int main(int argc, char** argv)
     int port = 0;
     int c = 0;
     char *error;
-    struct sockaddr_in dir;
-    int sockid, conn_sock, count;
+    socklen_t longc;
+    struct sockaddr_in * server;
+    Client client;
+    int server_connection, client_connection, count;
     int pid;
     char buffer[MSG_SIZE];
-    int num_clients = 0;
+    int connected_clients = 0;
+    char client_address[CLIENT_ADDRESS_LENGTH];
 
-    switch (argc)
-    {
+    switch (argc) {
         case 1:
-            /*
-                Si no pasa los argumentos asigno el puerto definido
-                en las macros
-            */
-            port = MYPORT; 
+            /**
+             * Asigno puerto predefinido en caso de que no venga
+             */
+            port = DEFAULT_PORT;
             break;
         case 3:
-            /*
-                En caso de que pase el argumento correcto,
-                asigno el puerto pasado por argumento
-            */
-            if(!strcmp("-p", argv[1])){
-                sscanf(argv[2], "%i", &port);
-            }else{
+            /**
+             * En caso de que pase el argumento correcto,
+             * asigno el puerto pasado por argumento
+             */
+            if(strcmp("-p", argv[1])){
                 usage(argv[0]);
                 exit(1);
             }
+
+            sscanf(argv[2], "%i", &port);
             break;
         default:
             usage(argv[0]);
             exit(1);
     }
 
-    //creamos el socket:
-    if((sockid=socket(PF_INET, SOCK_STREAM, 0)) < 0){
+    /* Creamos el socket */
+    if((server_connection = socket(PF_INET, SOCK_STREAM, 0)) < 0){
         error = "Socket Error";
         goto err;
     }
-    //Seteamos la direccion en la que va a escuchare el server
-    dir.sin_family      = AF_INET;
-    dir.sin_port        = htons(port);
-    dir.sin_addr.s_addr = htonl(INADDR_ANY);
+    /* Seteamos la direccion en la que va a escuchare el server */
+    server.sin_family      = AF_INET;
+    server.sin_port        = htons(port);
+    server.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    //asociamos la direccion con el socket
-    if((bind(sockid, (struct sockaddr *) &dir, sizeof(dir))) < 0) {
+    /* asociamos la direccion con el socket */
+    if((bind(server_connection, (struct sockaddr *) &server, sizeof(server))) < 0) {
         error = "Binding Error";
         goto err;
     }
 
-    listen(sockid, MAX_CLIENTS);
-
-    while(conn_sock = accept(sockid, NULL, NULL)){
-        if (conn_sock < 0){
-            error = "Connection Accepted";
+    listen(server_connection, MAX_CLIENTS);
+    printf("A la escucha en el puerto %d\n", ntohs(server.sin_port));
+    longc = sizeof(client.data);
+    while(client_connection = accept(server_connection, (struct sockaddr *)&client.data, &longc)){
+        if (client_connection < 0){
+            error = "Connection Error";
             goto err;
         }
-        if (num_clients < MAX_CLIENTS){
-            if (!(pid=fork())){		//proceso hijo
-                while(count=recv(conn_sock,buffer,MSG_SIZE,0)){
+
+        printf("Conectando con %s:%d\n", inet_ntoa(client.data.sin_addr), htons(client.data.sin_port));
+
+        if (connected_clients < MAX_CLIENTS){
+            connected_clients ++;
+            printf("Cantidad de clientes conectados: %d\n", connected_clients);
+            send(client_connection, "Recibido\n", 13, 0);
+            if (!(pid = fork())){		/* Proceso hijo */
+                while(count = recv(client_connection, buffer, MSG_SIZE,0)){
                     if (count < 0){
-                        error="recv";
+                        error = "recv";
                         goto err;
                     }
 
-                    *(buffer+count)='\0';
-                    printf("Recibiendo datos: %s (proceso %d)\n",buffer, getpid());
+                    *(buffer + count) = '\0';
+                    printf("Recibiendo datos: %s (proceso %d)\n", buffer, getpid());
                 }
-                close(sockid);
+                close(server_connection);
                 exit(0);
             }
         }
@@ -97,11 +120,9 @@ int main(int argc, char** argv)
     }
 
     err:
-    	fprintf(stderr,"%s %d %s\n",error,errno,strerror(errno));
+    	fprintf(stderr,"%s %d %s\n", error, errno, strerror(errno));
     return 0;
 }
 
-void usage(char *progname){
-	printf("\n Usage: \n \t %s -p <port> - Example: ./server -p 8000 \n\n",progname);
-}
+
 
